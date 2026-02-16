@@ -476,6 +476,11 @@ begin
       ''''' AS "Default", '''' AS "Compiled", '+
       '1 AS "Sortlen"';
     qGetCharsets: Result := 'SELECT name AS Charset, description AS Description FROM master.sys.syscharsets';
+    qGetRowCountApprox: Result := IfThen(
+      FServerVersion >= 900,
+      'SELECT SUM("rows") FROM "sys"."partitions" WHERE "index_id" IN (0, 1) AND "object_id" = object_id(:EscapedDbSchemaName)',
+      ''
+      );
     else Result := inherited;
   end;
 end;

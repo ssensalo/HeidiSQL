@@ -36,6 +36,7 @@ type
   TNetTypeLibs = TDictionary<TNetType, TStringList>;
 
   // SQL query ids and provider
+  TStringMap = TDictionary<string,string>;
   TQueryId = (qDatabaseTable, qDatabaseTableId, qDatabaseDrop,
     qDbObjectsTable, qDbObjectsCreateCol, qDbObjectsUpdateCol, qDbObjectsTypeCol,
     qEmptyTable, qRenameTable, qRenameView, qCurrentUserHost, qLikeCompare,
@@ -45,7 +46,7 @@ type
     qUSEQuery, qKillQuery, qKillProcess,
     qFuncLength, qFuncCeil, qFuncLeft, qFuncNow, qFuncLastAutoIncNumber,
     qLockedTables, qDisableForeignKeyChecks, qEnableForeignKeyChecks,
-    qOrderAsc, qOrderDesc,
+    qOrderAsc, qOrderDesc, qGetRowCountExact, qGetRowCountApprox,
     qForeignKeyDrop, qGetTableColumns, qGetCollations, qGetCollationsExtended, qGetCharsets);
   TSqlProvider = class
     strict protected
@@ -54,8 +55,12 @@ type
     public
       constructor Create(ANetType: TNetType);
       function Has(AId: TQueryId): Boolean;
+      // Base version, just returns the original SQL string
       function GetSql(AId: TQueryId): string; overload; virtual;
+      // Version for simple strings passed to Format()
       function GetSql(AId: TQueryId; const Args: array of const): string; overload;
+      // Version for named parameters
+      function GetSql(AId: TQueryId; NamedParameters: TStringMap): string; overload;
       property ServerVersion: Integer read FServerVersion write FServerVersion;
   end;
 
@@ -203,6 +208,7 @@ begin
     qForeignKeyEventAction: Result := 'RESTRICT,CASCADE,SET NULL,NO ACTION';
     qOrderAsc: Result := 'ASC';
     qOrderDesc: Result := 'DESC';
+    qGetRowCountExact: Result := 'SELECT COUNT(*) FROM :QuotedDbAndTableName';
     else Result := '';
   end;
 end;
@@ -210,10 +216,22 @@ end;
 function TSqlProvider.GetSql(AId: TQueryId; const Args: array of const): string;
 begin
   Result := GetSql(AId);
-  if not Result.IsEmpty then
-    Result := Format(Result, Args);
+  if Result.IsEmpty then
+    Exit;
+  Result := Format(Result, Args);
 end;
 
+function TSqlProvider.GetSql(AId: TQueryId; NamedParameters: TStringMap): string;
+var
+  Key: String;
+begin
+  Result := GetSql(AId);
+  if Result.IsEmpty then
+    Exit;
+  for Key in NamedParameters.Keys do begin
+    Result := StringReplace(Result, ':'+Key, NamedParameters[Key], [rfReplaceAll]);
+  end;
+end;
 
 
 

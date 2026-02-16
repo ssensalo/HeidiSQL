@@ -166,6 +166,7 @@ type
       FCreateCodeLoaded: Boolean;
       FWasSelected: Boolean;
       FConnection: TDBConnection;
+      FMap: TStringMap;
       function GetObjType: String;
       function GetImageIndex: Integer;
       function GetOverlayImageIndex: Integer;
@@ -185,6 +186,7 @@ type
 
       NodeType, GroupType: TListNodeType;
       constructor Create(OwnerConnection: TDBConnection);
+      destructor Destroy;
       procedure Assign(Source: TPersistent); override;
       procedure UnloadDetails;
       procedure Drop;
@@ -197,6 +199,7 @@ type
       function RowCount(Reload: Boolean; ForceExact: Boolean=False): Int64;
       function GetCreateCode: String; overload;
       function GetCreateCode(RemoveAutoInc, RemoveDefiner: Boolean): String; overload;
+      function AsStringMap: TStringMap;
       property ObjType: String read GetObjType;
       property ImageIndex: Integer read GetImageIndex;
       property OverlayImageIndex: Integer read GetOverlayImageIndex;
@@ -417,9 +420,9 @@ type
   TDBLogEvent = procedure(Msg: String; Category: TDBLogCategory=lcInfo; Connection: TDBConnection=nil) of object;
   TDBEvent = procedure(Connection: TDBConnection; Database: String) of object;
   TDBDataTypeArray = Array of TDBDataType;
-  TFeatureOrRequirement = (frSrid, frTimezoneVar, frTemporalTypesFraction, frKillQuery,
-    frLockedTables, frShowCreateTrigger, frShowWarnings,
-    frShowCharset, frIntegerDisplayWidth, frShowFunctionStatus, frShowProcedureStatus,
+  TFeatureOrRequirement = (frSrid, frTimezoneVar, frTemporalTypesFraction,
+    frShowCreateTrigger, frShowWarnings,
+    frIntegerDisplayWidth, frShowFunctionStatus, frShowProcedureStatus,
     frShowTriggers, frShowEvents, frColumnDefaultParentheses,
     frHelpKeyword, frEditVariables, frCreateView, frCreateProcedure, frCreateFunction,
     frCreateTrigger, frCreateEvent, frInvisibleColumns, frCompressedColumns);
@@ -644,7 +647,6 @@ type
       function GetAllDatabases: TStringList; override;
       function GetTableEngines: TStringList; override;
       function GetCreateViewCode(Database, Name: String): String;
-      function GetRowCount(Obj: TDBObject; ForceExact: Boolean=False): Int64; override;
       procedure FetchDbObjects(db: String; var Cache: TDBObjectList); override;
     public
       constructor Create(AOwner: TComponent); override;
@@ -674,7 +676,6 @@ type
       function GetLastErrorCode: Cardinal; override;
       function GetLastErrorMsg: String; override;
       function GetAllDatabases: TStringList; override;
-      function GetRowCount(Obj: TDBObject; ForceExact: Boolean=False): Int64; override;
       procedure FetchDbObjects(db: String; var Cache: TDBObjectList); override;
     public
       constructor Create(AOwner: TComponent); override;
@@ -714,7 +715,6 @@ type
       function Ping(Reconnect: Boolean): Boolean; override;
       function GetCreateCode(Obj: TDBObject): String; override;
       function ConnectionInfo: TStringList; override;
-      function GetRowCount(Obj: TDBObject; ForceExact: Boolean=False): Int64; override;
       property LastRawResults: TPGRawResults read FLastRawResults;
       property RegClasses: TOidStringPairs read FRegClasses;
       function GetTableKeys(Table: TDBObject): TTableKeyList; override;
@@ -6621,11 +6621,8 @@ begin
         frTimezoneVar: Result := ServerVersionInt >= 40103;
         frTemporalTypesFraction: Result := (FParameters.IsMariaDB and (ServerVersionInt >= 50300)) or
           (FParameters.IsMySQL(True) and (ServerVersionInt >= 50604));
-        frKillQuery: Result := (not FParameters.IsMySQLonRDS) and (ServerVersionInt >= 50000);
-        frLockedTables: Result := (not FParameters.IsProxySQLAdmin) and (ServerVersionInt >= 50124);
         frShowCreateTrigger: Result := ServerVersionInt >= 50121;
         frShowWarnings: Result := ServerVersionInt >= 40100;
-        frShowCharset: Result := ServerVersionInt >= 40100;
         frIntegerDisplayWidth: Result := (FParameters.IsMySQL(True) and (ServerVersionInt < 80017)) or
           (not FParameters.IsMySQL(True));
         frShowFunctionStatus: Result := (not Parameters.IsProxySQLAdmin) and (ServerVersionInt >= 50000);
@@ -6651,59 +6648,20 @@ end;
 
 function TDBConnection.GetRowCount(Obj: TDBObject; ForceExact: Boolean=False): Int64;
 var
-  Rows: String;
+  Rows, QueryApprox, QueryExact: String;
+  RowsColumn: Integer;
 begin
   // Get row number from a table
-  Rows := GetVar('SELECT COUNT(*) FROM '+QuotedDbAndTableName(Obj.Database, Obj.Name), 0);
-  Result := MakeInt(Rows);
-end;
-
-
-function TMySQLConnection.GetRowCount(Obj: TDBObject; ForceExact: Boolean=False): Int64;
-var
-  Rows: String;
-begin
-  // Get row number from a mysql table
-  if Parameters.IsProxySQLAdmin or ForceExact then begin
-    Result := inherited
+  QueryApprox := FSqlProvider.GetSql(qGetRowCountApprox, Obj.AsStringMap);
+  if QueryApprox.IsEmpty or ForceExact then begin
+    QueryExact := FSqlProvider.GetSql(qGetRowCountExact, Obj.AsStringMap);
+    Rows := GetVar(QueryExact);
   end
   else begin
-    Rows := GetVar('SHOW TABLE STATUS LIKE '+EscapeString(Obj.Name), 'Rows');
-    Result := MakeInt(Rows);
+    // This is ugly: in MySQL 4.x we only have SHOW TABLE STATUS, which cannot be limited to the "Rows" column
+    RowsColumn := IfThen(QueryApprox.StartsWith('SHOW ', True), 4, 0);
+    Rows := GetVar(QueryApprox, RowsColumn);
   end;
-end;
-
-
-function TAdoDBConnection.GetRowCount(Obj: TDBObject; ForceExact: Boolean=False): Int64;
-var
-  Rows: String;
-begin
-  // Get row number from a mssql table
-  if (ServerVersionInt < 900) or ForceExact then begin
-    Result := inherited
-  end
-  else begin
-    Rows := GetVar('SELECT SUM('+QuoteIdent('rows')+') FROM '+QuoteIdent('sys')+'.'+QuoteIdent('partitions')+
-      ' WHERE '+QuoteIdent('index_id')+' IN (0, 1)'+
-      ' AND '+QuoteIdent('object_id')+' = object_id('+EscapeString(Obj.Database+'.'+Obj.Schema+'.'+Obj.Name)+')'
-      );
-    Result := MakeInt(Rows);
-  end;
-end;
-
-
-function TPgConnection.GetRowCount(Obj: TDBObject; ForceExact: Boolean=False): Int64;
-var
-  Rows: String;
-begin
-  // Get row number from a postgres table
-  Rows := GetVar('SELECT '+QuoteIdent('reltuples')+'::bigint FROM '+QuoteIdent('pg_class')+
-    ' LEFT JOIN '+QuoteIdent('pg_namespace')+
-    '   ON ('+QuoteIdent('pg_namespace')+'.'+QuoteIdent('oid')+' = '+QuoteIdent('pg_class')+'.'+QuoteIdent('relnamespace')+')'+
-    ' WHERE '+QuoteIdent('pg_class')+'.'+QuoteIdent('relkind')+'='+EscapeString('r')+
-    ' AND '+QuoteIdent('pg_namespace')+'.'+QuoteIdent('nspname')+'='+EscapeString(Obj.Database)+
-    ' AND '+QuoteIdent('pg_class')+'.'+QuoteIdent('relname')+'='+EscapeString(Obj.Name)
-    );
   Result := MakeInt(Rows);
 end;
 
@@ -10183,6 +10141,13 @@ begin
   FCreateCodeLoaded := False;
   FWasSelected := False;
   FConnection := OwnerConnection;
+  FMap := TStringMap.Create;
+end;
+
+destructor TDBObject.Destroy;
+begin
+  FMap.Free;
+  inherited;
 end;
 
 
@@ -10531,6 +10496,20 @@ begin
   Result := TCheckConstraintList.Create;
   Result.Assign(CheckConstraintsInCache);
 end;
+
+function TDBObject.AsStringMap: TStringMap;
+begin
+  FMap.Clear;
+  FMap.Add('EscapedName', FConnection.EscapeString(Name));
+  FMap.Add('EscapedSchema', FConnection.EscapeString(Schema));
+  FMap.Add('EscapedDatabase', FConnection.EscapeString(Database));
+  FMap.Add('EscapedDbSchemaName', FConnection.EscapeString(Database+'.'+Schema+'.'+Name));
+  FMap.Add('QuotedDatabase', QuotedDatabase);
+  FMap.Add('QuotedName', QuotedName);
+  FMap.Add('QuotedDbAndTableName', QuotedDbAndTableName);
+  Result := FMap;
+end;
+
 
 
 

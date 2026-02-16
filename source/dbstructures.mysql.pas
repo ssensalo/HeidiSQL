@@ -3316,6 +3316,11 @@ begin
       'SHOW CHARSET',
       ''
       );
+    qGetRowCountApprox: Result := IfThen(
+      FNetType <> ntMySQL_ProxySQLAdmin,
+      'SHOW TABLE STATUS LIKE :EscapedName',
+      ''
+      );
     else Result := inherited;
   end;
 end;

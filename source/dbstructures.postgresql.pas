@@ -709,6 +709,11 @@ begin
       '(SELECT conforencoding AS enc FROM pg_catalog.pg_conversion '+
       '  UNION '+
       '  SELECT contoencoding AS enc FROM pg_catalog.pg_conversion) AS x';
+    qGetRowCountApprox: Result := 'SELECT reltuples::bigint FROM pg_class'+
+      ' LEFT JOIN pg_namespace ON pg_namespace.oid = pg_class.relnamespace'+
+      ' WHERE pg_class.relkind=''r'''+
+      '   AND pg_namespace.nspname=:EscapedDatabase'+
+      '   AND pg_class.relname=:EscapedName';
     else Result := inherited;
   end;
 end;
