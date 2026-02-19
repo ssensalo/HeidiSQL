@@ -1369,6 +1369,7 @@ begin
   menuRemoveColumn.Enabled := btnRemoveColumn.Enabled;
   menuMoveUpColumn.Enabled := btnMoveUpColumn.Enabled;
   menuMoveDownColumn.Enabled := btnMoveDownColumn.Enabled;
+  listColumns.Invalidate;
 end;
 
 
