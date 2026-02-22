@@ -165,7 +165,10 @@ begin
     ReleasePackage := IfThen(AppSettings.PortableMode, 'portable', 'installer');
     memoRelease.Lines.Add(f_('Version %s (yours: %s)', [ReleaseVersion, Mainform.AppVersion]));
     memoRelease.Lines.Add(f_('Released: %s', [Ini.ReadString(INISECT_RELEASE, 'Date', '')]));
-    Note := Ini.ReadString(INISECT_RELEASE, 'Note', '');
+    if IsWine then
+      Note := _('Wine support is deprecated. Future versions will not work reliably. Use the native Linux or macOS releases instead.')
+    else
+      Note := Ini.ReadString(INISECT_RELEASE, 'Note', '');
     if Note <> '' then
       memoRelease.Lines.Add(_('Notes') + ': ' + Note);
 
