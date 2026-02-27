@@ -774,7 +774,6 @@ type
     Copywithtabstospaces1: TMenuItem;
     Movelinedown1: TMenuItem;
     Movelineup1: TMenuItem;
-    menuToggleAll: TMenuItem;
     menuCloseTabOnDblClick: TMenuItem;
     Undo1: TMenuItem;
     actSequalSuggest: TAction;
@@ -808,6 +807,8 @@ type
     menuDisplayLogPanel1: TMenuItem;
     menuTreefilters1: TMenuItem;
     N27: TMenuItem;
+    actCopyColumnNames: TAction;
+    Copycolumnnames1: TMenuItem;
     procedure actCreateDBObjectExecute(Sender: TObject);
     procedure menuConnectionsPopup(Sender: TObject);
     procedure actExitApplicationExecute(Sender: TObject);
@@ -827,6 +828,7 @@ type
     procedure actTableToolsExecute(Sender: TObject);
     procedure actPrintListExecute(Sender: TObject);
     procedure actCopyTableExecute(Sender: TObject);
+    procedure popupListHeaderPopup(Sender: TObject);
     procedure ShowStatusMsg(Msg: String=''; PanelNr: Integer=6);
     procedure actExecuteQueryExecute(Sender: TObject);
     procedure actCreateDatabaseExecute(Sender: TObject);
@@ -1190,6 +1192,7 @@ type
     procedure FormBeforeMonitorDpiChanged(Sender: TObject; OldDPI,
       NewDPI: Integer);
     procedure menuToggleAllClick(Sender: TObject);
+    procedure menuCopyColumnNamesClick(Sender: TObject);
     procedure FormAfterMonitorDpiChanged(Sender: TObject; OldDPI,
       NewDPI: Integer);
     procedure menuCloseTabOnDblClickClick(Sender: TObject);
@@ -10364,6 +10367,29 @@ begin
 
 end;
 
+procedure TMainForm.menuCopyColumnNamesClick(Sender: TObject);
+var
+  Grid: TVirtualStringTree;
+  Col: TColumnIndex;
+  List: TStringList;
+begin
+  if Sender is TMenuItem then
+    Grid := PopupComponent(Sender) as TVirtualStringTree
+  else if Screen.ActiveControl is TVirtualStringTree then
+    Grid := Screen.ActiveControl as TVirtualStringTree
+  else
+    Exit;
+
+  List := TStringList.Create;
+  Col := Grid.Header.Columns.GetFirstVisibleColumn(True);
+  while Col > NoColumn do begin
+    List.Add(Grid.Header.Columns[Col].Text);
+    Col := Grid.Header.Columns.GetNextVisibleColumn(Col);
+  end;
+  Clipboard.TryAsText := List.Text;
+  List.Free;
+end;
+
 procedure TMainForm.menuTreeCollapseAllClick(Sender: TObject);
 var
   n: PVirtualNode;
@@ -13023,6 +13049,34 @@ begin
     Exit;
   // Prevent EAccessViolation in TControl.GetClientWidth, see issue #1640
   TimerCloseTabByButton.Enabled := True;
+end;
+
+procedure TMainForm.popupListHeaderPopup(Sender: TObject);
+var
+  Item: TMenuItem;
+  i: Integer;
+const
+  CustomItemTag = 123;
+begin
+  // Add a few items to the top of the grid's header context menu
+  for i:=popupListHeader.Items.Count-1 downto 0 do begin
+    Item := popupListHeader.Items[i];
+    if Item.Tag = CustomItemTag then
+      Item.Free;
+  end;
+
+  Item := TMenuItem.Create(popupListHeader);
+  Item.Tag := CustomItemTag;
+  Item.Caption := _('Toggle visibility of all columns');
+  Item.OnClick := menuToggleAllClick;
+  popupListHeader.Items.Insert(0, Item);
+
+  Item := TMenuItem.Create(popupListHeader);
+  Item.Tag := CustomItemTag;
+  Item.Caption := _('Copy column names');
+  Item.OnClick := menuCopyColumnNamesClick;
+  Item.ImageIndex := actCopy.ImageIndex;
+  popupListHeader.Items.Insert(1, Item);
 end;
 
 

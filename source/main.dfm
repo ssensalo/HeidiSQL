@@ -1859,6 +1859,9 @@ object MainForm: TMainForm
       object CopyItem: TMenuItem
         Action = actCopy
       end
+      object Copycolumnnames1: TMenuItem
+        Action = actCopyColumnNames
+      end
       object Copywithtabstospaces1: TMenuItem
         Action = actCopyTabsToSpaces
       end
@@ -3425,6 +3428,12 @@ object MainForm: TMainForm
       Caption = 'Tree filters'
       OnExecute = actDisplayTreeFiltersExecute
     end
+    object actCopyColumnNames: TAction
+      Category = 'Various'
+      Caption = 'Copy column names'
+      ImageIndex = 3
+      OnExecute = menuCopyColumnNamesClick
+    end
   end
   object menuConnections: TPopupMenu
     AutoHotkeys = maManual
@@ -3960,12 +3969,9 @@ object MainForm: TMainForm
   end
   object popupListHeader: TVTHeaderPopupMenu
     Images = VirtualImageListMain
+    OnPopup = popupListHeaderPopup
     Left = 424
     Top = 208
-    object menuToggleAll: TMenuItem
-      Caption = 'Toggle visibility of all columns'
-      OnClick = menuToggleAllClick
-    end
   end
   object SynCompletionProposal: TSynCompletionProposal
     Options = [scoLimitToMatchedText, scoUseInsertList, scoUsePrettyText, scoUseBuiltInTimer, scoEndCharCompletion, scoCompleteWithTab, scoCompleteWithEnter]
