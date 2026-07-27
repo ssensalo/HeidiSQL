@@ -8400,6 +8400,8 @@ begin
             TypeIndex := dbdtDateTime;
           //ftTimeStampOffset: // this is NOT data type DATETIMEOFFSET
           //  TypeIndex := dbdtDatetime;
+          ftCurrency:
+            TypeIndex := dbdtMoney;
           else
             raise EDbError.CreateFmt(_('Unknown data type for column #%d - %s: %d'), [i, FColumnNames[i], Integer(LastResult.Fields[i].DataType)]);
         end;
