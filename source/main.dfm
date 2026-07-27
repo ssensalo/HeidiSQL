@@ -1927,6 +1927,10 @@ object MainForm: TMainForm
         Action = actDisplayTreeFilters
         AutoCheck = True
       end
+      object menuTreeShowColumns1: TMenuItem
+        Action = actTreeShowColumns
+        AutoCheck = True
+      end
       object N27: TMenuItem
         Caption = '-'
       end
@@ -3464,6 +3468,12 @@ object MainForm: TMainForm
       ImageIndex = 58
       OnExecute = actDataEditWithoutLookupExecute
     end
+    object actTreeShowColumns: TAction
+      Category = 'Various'
+      AutoCheck = True
+      Caption = 'Columns below tables in tree'
+      OnExecute = actTreeShowColumnsExecute
+    end
   end
   object menuConnections: TPopupMenu
     AutoHotkeys = maManual
@@ -3590,6 +3600,10 @@ object MainForm: TMainForm
       end
       object actFavoriteObjectsOnly1: TMenuItem
         Action = actFavoriteObjectsOnly
+        AutoCheck = True
+      end
+      object menuTreeShowColumns2: TMenuItem
+        Action = actTreeShowColumns
         AutoCheck = True
       end
     end

@@ -198,12 +198,15 @@ type
 
   TMainForm = class(TExtForm)
     actDataEditWithoutLookup: TAction;
+    actTreeShowColumns: TAction;
     MainMenu1: TMainMenu;
     MainMenuFile: TMenuItem;
     FileNewItem: TMenuItem;
     MainMenuHelp: TMenuItem;
     FollowForeignKey: TMenuItem;
     menuDataEditWithoutLookup: TMenuItem;
+    menuTreeShowColumns2: TMenuItem;
+    menuTreeShowColumns1: TMenuItem;
     menuRenameSnippet: TMenuItem;
     N1: TMenuItem;
     FileExitItem: TMenuItem;
@@ -816,6 +819,7 @@ type
     Copyformattedtext1: TMenuItem;
     procedure actCreateDBObjectExecute(Sender: TObject);
     procedure actDataEditWithoutLookupExecute(Sender: TObject);
+    procedure actTreeShowColumnsExecute(Sender: TObject);
     procedure menuConnectionsPopup(Sender: TObject);
     procedure actExitApplicationExecute(Sender: TObject);
     procedure WMCopyData(var Msg: TWMCopyData); message WM_COPYDATA;
@@ -1874,6 +1878,7 @@ begin
   AppSettings.WriteInt(asCompletionProposalNbLinesInWindow, SynCompletionProposal.NbLinesInWindow);
   AppSettings.WriteInt(asDbtreewidth, pnlLeft.width);
   AppSettings.WriteBool(asGroupTreeObjects, actGroupObjects.Checked);
+  AppSettings.WriteBool(asTreeShowColumns, actTreeShowColumns.Checked);
   AppSettings.WriteInt(asDataPreviewHeight, pnlPreview.Height);
   AppSettings.WriteBool(asDataPreviewEnabled, actDataPreview.Checked);
   AppSettings.WriteInt(asLogHeight, SynMemoSQLLog.Height);
@@ -2104,6 +2109,7 @@ begin
 
   // Display options, and database tree options
   actGroupObjects.Checked := AppSettings.ReadBool(asGroupTreeObjects);
+  actTreeShowColumns.Checked := AppSettings.ReadBool(asTreeShowColumns);
   actDisplayObjectSize.Checked := AppSettings.ReadBool(asDisplayObjectSizeColumn);
   actDisplayObjectSizeExecute(nil);
   actDisplayLogPanel.Checked := AppSettings.ReadBool(asDisplayLogPanel);
@@ -4555,6 +4561,13 @@ begin
   else if a = actCreateFunction then Obj.NodeType := lntFunction;
 
   PlaceObjectEditor(Obj);
+end;
+
+
+procedure TMainForm.actTreeShowColumnsExecute(Sender: TObject);
+begin
+  // Show columns in table nodes on tree
+  RefreshTree(nil);
 end;
 
 
@@ -9896,6 +9909,14 @@ var
   Item, ParentObj: PDBObject;
   DBObjects: TDBObjectList;
   Columns: TTableColumnList;
+
+  function TreeShowColumns: Boolean;
+  begin
+    Result := Item.NodeType = lntTable;
+    if Sender = DBtree then // optional in dbtree
+      Result := actTreeShowColumns.Checked;
+  end;
+
 begin
   Item := Sender.GetNodeData(Node);
   if (not Assigned(ParentNode)) or (ParentNode = nil) then begin
@@ -9928,14 +9949,14 @@ begin
         end else begin
           DBObjects := ParentObj.Connection.GetDBObjects(ParentObj.Database);
           Item^ := DBObjects[Node.Index];
-          if Item.NodeType = lntTable then
+          if TreeShowColumns then
             Include(InitialStates, ivsHasChildren);
         end;
       end;
       lntGroup: begin
         DBObjects := ParentObj.Connection.GetDBObjects(ParentObj.Database, False, ParentObj.GroupType);
         Item^ := DBObjects[Node.Index];
-        if Item.NodeType = lntTable then
+        if TreeShowColumns then
           Include(InitialStates, ivsHasChildren);
       end;
       lntTable: begin
