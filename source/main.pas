@@ -9911,10 +9911,17 @@ var
   Columns: TTableColumnList;
 
   function TreeShowColumns: Boolean;
+  var f: TWinControl;
   begin
-    Result := Item.NodeType = lntTable;
-    if Sender = DBtree then // optional in dbtree
-      Result := actTreeShowColumns.Checked;
+    Result := False;
+    if Item.NodeType = lntTable then begin
+      if Sender = DBtree then // optional in dbtree
+        Result := actTreeShowColumns.Checked
+      else begin
+        f := GetParentFormOrFrame(Sender);
+        Result := Assigned(f) and (f is TfrmSelectDBObject);
+      end;
+    end;
   end;
 
 begin
