@@ -3153,6 +3153,8 @@ uses apphelpers;
 
 
 constructor TMySQLLib.Create(DllFile, DefaultDll: String);
+var
+  LibMajorVer: String;
 begin
   inherited;
   // MYSQL_OPT_* constants
@@ -3180,17 +3182,22 @@ begin
     MYSQL_OPT_SSL_VERIFY_SERVER_CERT := 21;
     MARIADB_OPT_TLS_VERSION := 7005;
   end
-  else if String(mysql_get_client_info).StartsWith('8.') then begin
-    // Some constants were removed in MySQL 8.0, so the offsets differ
-    MYSQL_PLUGIN_DIR := 16;
-    MYSQL_OPT_SSL_KEY := 19;
-    MYSQL_OPT_SSL_CERT := 20;
-    MYSQL_OPT_SSL_CA := 21;
-    MYSQL_OPT_SSL_CIPHER := 23;
-    MYSQL_OPT_CONNECT_ATTR_ADD := 27;
-    MYSQL_ENABLE_CLEARTEXT_PLUGIN := 30;
-    MYSQL_OPT_TLS_VERSION := 34;
-    MYSQL_OPT_SSL_MODE := 35;
+  else begin
+    LibMajorVer := String(mysql_get_client_info);
+    LibMajorVer := Copy(LibMajorVer, 1, Pos('.', LibMajorVer)-1);
+    if StrToIntDef(LibMajorVer, 0) >= 8 then begin
+      // Some constants were removed in MySQL 8.0, so the offsets differ
+      // This also covers MySQL 9.x "Innovation" releases, which kept the same offsets as 8.x.
+      MYSQL_PLUGIN_DIR := 16;
+      MYSQL_OPT_SSL_KEY := 19;
+      MYSQL_OPT_SSL_CERT := 20;
+      MYSQL_OPT_SSL_CA := 21;
+      MYSQL_OPT_SSL_CIPHER := 23;
+      MYSQL_OPT_CONNECT_ATTR_ADD := 27;
+      MYSQL_ENABLE_CLEARTEXT_PLUGIN := 30;
+      MYSQL_OPT_TLS_VERSION := 34;
+      MYSQL_OPT_SSL_MODE := 35;
+    end;
   end;
 end;
 
